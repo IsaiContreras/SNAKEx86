@@ -1,0 +1,4 @@
+#Archivo git ignore, aqui van los archivos a ignorar en el versionamiento
+.vs
+Debug/
+masm32/
