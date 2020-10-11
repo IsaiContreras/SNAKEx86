@@ -58,7 +58,9 @@ imageFilename			byte		'snake_spritesheet.bmp',0				; El manejador de la imagen a
 ;==============================================
 ;=============== MIS VARIABLES ================
 ;==============================================
+loop_aux dword 0
 timer_counter byte 0
+controller byte 0
 mode dword 0
 ;speed dword 0
 
@@ -156,6 +158,7 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 			.ENDIF
 		.ENDIF
 		invoke	SetTimer, handler, 33, 10, NULL
+		invoke setup
 
 ;	//// WM_PAINT \\\\
 	.ELSEIF message == WM_PAINT
@@ -169,16 +172,37 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 		invoke	DeleteObject, auxiliarLayer
 		invoke	FillRect, auxiliarLayerContext, addr clientRect, clearColor						; Llenamos nuestro auxiliar con nuestro color de borrado, sirve para limpiar la pantalla
 		invoke	SelectObject, layerContext, image												; Elegimos la imagen
+
 		; //// PROCESOS DE DIBUJADO \\\\
+		invoke	TransparentBlt, auxiliarLayerContext, 0, 0, 672, 672, layerContext, 0, 17, 672, 672, 00000FF00h			; Mundo de Snake
 
+		mov eax, personajeX																								; Cabeza de Snake
+		mov ebx, personajeY
+		.IF dir == 1
+			invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 0, 0, 16, 16, 0000FF00h
+		.ELSEIF dir == 2
+			invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 16, 0, 16, 16, 0000FF00h
+		.ELSEIF dir == 3
+			invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 32, 0, 16, 16, 0000FF00h
+		.ELSEIF dir == 4
+			invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 48, 0, 16, 16, 0000FF00h
+		.ELSEIF dir == 0
+			invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 0, 0, 16, 16, 0000FF00h
+		.ENDIF
 
-
-		invoke	TransparentBlt, auxiliarLayerContext, 0, 0, 672, 672, layerContext, 0, 17, 672, 672, 00000FF00h
-		invoke	TransparentBlt, auxiliarLayerContext, 336, 336, 16, 16, layerContext, 16, 0, 16, 16, 0000FF00h
-		invoke	TransparentBlt, auxiliarLayerContext, 352, 336, 16, 16, layerContext, 64, 0, 16, 16, 00000FF00h
-		invoke	TransparentBlt, auxiliarLayerContext, 368, 336, 16, 16, layerContext, 64, 0, 16, 16, 00000FF00h
-		invoke	TransparentBlt, auxiliarLayerContext, 384, 336, 16, 16, layerContext, 64, 0, 16, 16, 00000FF00h
-		invoke	TransparentBlt, auxiliarLayerContext, 256, 380, 16, 16, layerContext, 80, 0, 16, 16, 00000FF00h
+		mov ecx, nTail							; Cola de snake
+		mov ebx, offset tailX
+		mov esi, offset tailY
+		tail_draw:
+			mov loop_aux, ecx
+			mov eax, dword ptr [ebx]
+			mov edx, dword ptr [esi]
+			invoke	TransparentBlt, auxiliarLayerContext, eax, edx, 16, 16, layerContext, 64, 0, 16, 16, 00000FF00h
+			add ebx, 4
+			add esi, 4
+			mov ecx, loop_aux
+		loop tail_draw
+		
 		; //// MOSTRAR EN PANTALLA \\\\
 		invoke	BitBlt, windowContext, 0, 0, clientRect.right, clientRect.bottom, auxiliarLayerContext, 0, 0, SRCCOPY	
 		invoke  EndPaint, handler, addr windowPaintstruct										; Es MUY importante liberar los recursos al terminar de usuarlos, si no se liberan la aplicación se quedará trabada con el tiempo
@@ -188,21 +212,38 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 ;	//// WM_KEYDOWN \\\\
 	.ELSEIF message == WM_KEYDOWN
 		mov	eax, wParam
-		.IF al == 65
-			mov dir, 1
-		.ENDIF
-		.IF al == 87
-			mov dir, 2
-		.ENDIF
-		.IF al == 68
-			mov dir, 3
-		.ENDIF
-		.IF al == 83
-			mov dir, 4
+		.IF controller == 1
+			.IF al == 65
+				.IF dir == 3
+					jmp jump65
+				.ENDIF
+				mov dir, 1
+				jump65:
+			.ELSEIF al == 87
+				.IF dir == 4
+					jmp jump87
+				.ENDIF
+				mov dir, 2
+				jump87:
+			.ELSEIF al == 68
+				.IF dir == 1
+					jmp jump68
+				.ENDIF
+				mov dir, 3
+				jump68:
+			.ELSEIF al == 83
+				.IF dir == 2
+					jmp jump83
+				.ENDIF
+				mov dir, 4
+				jump83:
+			.ENDIF
+			mov controller, 0
 		.ENDIF
 		.IF al == 20
 			invoke	credits, handler
 		.ENDIF
+		
 
 ;	//// MM_JOY1MOVE \\\\
 	.ELSEIF message == MM_JOY1MOVE
@@ -271,11 +312,37 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 WindowCallback endp
 
 setup proc
+	mov ecx, 1600
+	mov ebx, offset tailX
+	mov esi, offset tailY
+	zeroTail:
+		mov dword ptr [ebx], 0
+		mov dword ptr [esi], 0
+		add ebx, 4
+		add esi, 4
+	loop zeroTail
+	mov gameover, 0
+	mov controller, 1
+	mov dir, 0
+	mov personajeX, 336
+	mov personajeY, 336
+	mov nTail, 3
+	mov ecx, nTail
+	mov tailX[0], 352
+	mov tailY[0], 336
+	mov tailX[4], 368
+	mov tailY[4], 336
+	mov tailX[8], 384
+	mov tailY[8], 336
 	ret
 setup endp
 
 algorythm proc
 	.IF dir != 0
+		mov eax, tailX[0]
+		mov prevX, eax
+		mov eax, tailY[0]
+		mov prevY, eax
 		mov eax, personajeX
 		mov tailX[0], eax
 		mov eax, personajeY
@@ -283,11 +350,13 @@ algorythm proc
 		mov ecx, nTail
 		mov ebx, offset tailX
 		mov esi, offset tailY
+		add ebx, 4
+		add esi, 4
 		move_tail:
 			mov eax, dword ptr [ebx]
 			mov prev2X, eax
 			mov eax, dword ptr [esi]
-			mov prev2X, eax
+			mov prev2Y, eax
 			mov eax, prevX
 			mov dword ptr [ebx], eax
 			mov eax, prevY
@@ -329,6 +398,7 @@ algorythm proc
 		.IF ebx == fruitY
 		.ENDIF
 	.ENDIF
+	mov controller, 1
 	ret
 algorythm endp
 
