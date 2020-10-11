@@ -62,9 +62,9 @@ loop_aux dword 0
 timer_counter byte 0
 controller byte 0
 mode dword 0
+gameover byte 0
 ;speed dword 0
 
-gameover byte 0
 dir dword 0
 personajeX dword 336
 personajeY dword 336
@@ -203,6 +203,10 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 			mov ecx, loop_aux
 		loop tail_draw
 		
+		.IF gameover == 1
+			invoke	TransparentBlt, auxiliarLayerContext, 0, 0, 238, 110, layerContext, 672, 580, 238, 110, 00000FF00h
+		.ENDIF
+
 		; //// MOSTRAR EN PANTALLA \\\\
 		invoke	BitBlt, windowContext, 0, 0, clientRect.right, clientRect.bottom, auxiliarLayerContext, 0, 0, SRCCOPY	
 		invoke  EndPaint, handler, addr windowPaintstruct										; Es MUY importante liberar los recursos al terminar de usuarlos, si no se liberan la aplicación se quedará trabada con el tiempo
@@ -213,37 +217,41 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 	.ELSEIF message == WM_KEYDOWN
 		mov	eax, wParam
 		.IF controller == 1
-			.IF al == 65
-				.IF dir == 3
-					jmp jump65
+			.IF gameover == 0
+				.IF al == 65
+					.IF dir == 3
+						jmp jump65
+					.ENDIF
+					mov dir, 1
+					jump65:
+				.ELSEIF al == 87
+					.IF dir == 4
+						jmp jump87
+					.ENDIF
+					mov dir, 2
+					jump87:
+				.ELSEIF al == 68
+					.IF dir == 1
+						jmp jump68
+					.ENDIF
+					mov dir, 3
+					jump68:
+				.ELSEIF al == 83
+					.IF dir == 2
+						jmp jump83
+					.ENDIF
+					mov dir, 4
+					jump83:
 				.ENDIF
-				mov dir, 1
-				jump65:
-			.ELSEIF al == 87
-				.IF dir == 4
-					jmp jump87
-				.ENDIF
-				mov dir, 2
-				jump87:
-			.ELSEIF al == 68
-				.IF dir == 1
-					jmp jump68
-				.ENDIF
-				mov dir, 3
-				jump68:
-			.ELSEIF al == 83
-				.IF dir == 2
-					jmp jump83
-				.ENDIF
-				mov dir, 4
-				jump83:
 			.ENDIF
 			mov controller, 0
 		.ENDIF
 		.IF al == 20
 			invoke	credits, handler
 		.ENDIF
-		
+		.IF al == 82
+			invoke setup
+		.ENDIF
 
 ;	//// MM_JOY1MOVE \\\\
 	.ELSEIF message == MM_JOY1MOVE
@@ -285,7 +293,7 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 ;	//// WM_TIMER \\\\
 	.ELSEIF message == WM_TIMER
 		.IF mode == 0
-			.IF timer_counter == 28
+			.IF timer_counter == 5
 				mov timer_counter, 0
 			.ENDIF
 		.ELSEIF mode == 1
@@ -298,7 +306,9 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 			.ENDIF
 		.ENDIF
 		.IF timer_counter == 0
-			invoke algorythm
+			.IF gameover == 0
+				invoke algorythm
+			.ENDIF
 		.ENDIF
 		inc timer_counter
 		invoke	InvalidateRect, handler, NULL, FALSE
@@ -394,6 +404,16 @@ algorythm proc
 	loop colide_yourself
 	mov eax, personajeX
 	mov ebx, personajeY
+	.IF eax == 0
+		mov gameover, 1
+	.ELSEIF eax == 656
+		mov gameover, 1
+	.ENDIF
+	.IF ebx == 0
+		mov gameover, 1
+	.ELSEIF ebx == 656
+		mov gameover, 1
+	.ENDIF
 	.IF eax == fruitX
 		.IF ebx == fruitY
 		.ENDIF
