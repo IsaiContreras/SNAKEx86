@@ -48,9 +48,9 @@ errorTitle				byte		'Error', 0
 joystickErrorText		byte		'No se pudo inicializar el joystick', 0
 
 ; ========================================== VARIABLES QUE PROBABLEMENTE QUIERAN CAMBIAR ===================================
-windowTitle				db			"Plantilla Ensamblador",0				; El título de la ventana
-windowWidth				DWORD		688										; El ancho de la venata CON TODO Y LA BARRA DE TITULO Y LOS MARGENES
-windowHeight			DWORD		772										; El alto de la ventana CON TODO Y LA BARRA DE TITULO Y LOS MARGENES
+windowTitle				db			"SNAKEx86",0							; El título de la ventana
+windowWidth				DWORD		448										; El ancho de la venata CON TODO Y LA BARRA DE TITULO Y LOS MARGENES
+windowHeight			DWORD		482										; El alto de la ventana CON TODO Y LA BARRA DE TITULO Y LOS MARGENES
 messageBoxTitle			byte		'Plantilla ensamblador: Créditos',0		; Un string, se usa como título del messagebox NOTESE QUE TRAS ESCRIBIR EL STRING, SE LE CONCATENA UN 0
 messageBoxText			byte		'Programación: Edgar Abraham Santos Cervantes',10,'Arte: Estúdio Vaca Roxa',10,'https://bakudas.itch.io/generic-rpg-pack',0
 musicFilename			byte		'snake_theme.wav',0						; El nombre de la música a reproducir.
@@ -68,13 +68,14 @@ gameover byte 0
 ;speed dword 0
 seed dword 0
 randnum dword 0
+score dword 0
 
 dir dword 0
 facing dword 0
-personajeX dword 336
-personajeY dword 336
-tailX dword 1600 dup(?)
-tailY dword 1600 dup(?)
+personajeX dword 0
+personajeY dword 0
+tailX dword 400 dup(?)
+tailY dword 400 dup(?)
 prevX dword 0
 prevY dword 0
 prev2X dword 0
@@ -149,19 +150,19 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 		invoke	LoadImage, NULL, addr imageFilename, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE		;Cargamos la imagen
 		mov		image, eax
 		invoke	joyGetNumDevs																	; Habilitamos el joystick
-		.IF eax == 0
-			invoke joystickError	
-		.ELSE
-			invoke	joyGetPos, JOYSTICKID1, addr joystickInfo
-			.IF eax != JOYERR_NOERROR
-				invoke joystickError
-			.ELSE
-				invoke	joySetCapture, handler, JOYSTICKID1, NULL, FALSE
-				.IF eax != 0
-					invoke joystickError
-				.ENDIF
-			.ENDIF
-		.ENDIF
+;		.IF eax == 0
+;			invoke joystickError	
+;		.ELSE
+;			invoke	joyGetPos, JOYSTICKID1, addr joystickInfo
+;			.IF eax != JOYERR_NOERROR
+;				invoke joystickError
+;			.ELSE
+;				invoke	joySetCapture, handler, JOYSTICKID1, NULL, FALSE
+;				.IF eax != 0
+;					invoke joystickError
+;				.ENDIF
+;			.ENDIF
+;		.ENDIF
 		invoke	SetTimer, handler, 33, 10, NULL
 		invoke setup
 
@@ -180,7 +181,7 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 
 		; //// PROCESOS DE DIBUJADO \\\\
 
-		invoke	TransparentBlt, auxiliarLayerContext, 0, 0, 672, 672, layerContext, 0, 17, 672, 672, 00000FF00h			; Mundo de Snake
+		invoke	TransparentBlt, auxiliarLayerContext, 0, 0, 432, 432, layerContext, 0, 17, 432, 432, 00000FF00h			; Mundo de Snake
 
 		mov eax, personajeX																								; Cabeza de Snake
 		mov ebx, personajeY
@@ -212,7 +213,7 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 		invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 80, 0, 16, 16, 00000FF00h
 		
 		.IF gameover == 1
-			invoke TransparentBlt, auxiliarLayerContext, 247, 281, 182, 110, layerContext, 672, 0, 182, 110, 00000FF00h
+			invoke TransparentBlt, auxiliarLayerContext, 133, 169, 182, 110, layerContext, 432, 0, 182, 110, 00000FF00h
 		.ENDIF
 
 		; //// MOSTRAR EN PANTALLA \\\\
@@ -304,7 +305,7 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 ;	//// WM_TIMER \\\\
 	.ELSEIF message == WM_TIMER
 		.IF mode == 0
-			.IF timer_counter == 25
+			.IF timer_counter == 8
 				mov timer_counter, 0
 			.ENDIF
 		.ELSEIF mode == 1
@@ -333,7 +334,7 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 WindowCallback endp
 
 setup proc
-	mov ecx, 1600
+	mov ecx, 400
 	mov ebx, offset tailX
 	mov esi, offset tailY
 	zeroTail:
@@ -346,16 +347,17 @@ setup proc
 	mov controller, 1
 	mov dir, 0
 	mov facing, 0
-	mov personajeX, 336
-	mov personajeY, 336
+	mov personajeX, 224
+	mov personajeY, 224
 	mov nTail, 3
+	mov score, 0
 	mov ecx, nTail
 	mov ebx, offset tailX
 	mov esi, offset tailY
-	mov eax, 352
+	mov eax, 240
 	initializeTail:
 		mov dword ptr [ebx], eax
-		mov dword ptr [esi], 336
+		mov dword ptr [esi], 224
 		add eax, 16
 		add ebx, 4
 		add esi, 4
@@ -427,16 +429,17 @@ algorythm proc
 	mov ebx, personajeY
 	.IF eax == 0
 		mov gameover, 1
-	.ELSEIF eax == 656
+	.ELSEIF eax == 416
 		mov gameover, 1
 	.ENDIF
 	.IF ebx == 0
 		mov gameover, 1
-	.ELSEIF ebx == 656
+	.ELSEIF ebx == 416
 		mov gameover, 1
 	.ENDIF
 	.IF eax == fruitX
 		.IF ebx == fruitY
+			add score, 100
 			inc nTail
 			ubicate:
 				invoke LocateFruit
@@ -461,13 +464,13 @@ algorythm proc
 algorythm endp
 
 LocateFruit proc
-	mov eax, 40
+	mov eax, 20
 	invoke PseudoRandom
 	mov ebx, 16
 	mul ebx
 	mov fruitX, eax
 	add fruitX, 16
-	mov eax, 40
+	mov eax, 20
 	invoke PseudoRandom
 	mov ebx, 16
 	mul ebx
@@ -484,7 +487,6 @@ PseudoRandom proc                       ; Deliver EAX: Range (0..EAX-1)
       mov   eax, edx                    ; Return the EDX from the multiplication
       pop   edx                         ; Restore EDX
       ret
-ret
 PseudoRandom endp                       ; Return EAX: Random number in range
 
 playMusic proc
