@@ -25,6 +25,8 @@ setup			proto
 algorythm		proto
 LocateFruit		proto
 PseudoRandom    proto
+SeparateScore	proto
+PrintNumber		proto
 WinMain			proto	:DWORD, :DWORD, :DWORD, :DWORD
 
 ; =========================================== DECLARACION DE VARIABLES =====================================================
@@ -50,7 +52,7 @@ joystickErrorText		byte		'No se pudo inicializar el joystick', 0
 ; ========================================== VARIABLES QUE PROBABLEMENTE QUIERAN CAMBIAR ===================================
 windowTitle				db			"SNAKEx86",0							; El título de la ventana
 windowWidth				DWORD		448										; El ancho de la venata CON TODO Y LA BARRA DE TITULO Y LOS MARGENES
-windowHeight			DWORD		482										; El alto de la ventana CON TODO Y LA BARRA DE TITULO Y LOS MARGENES
+windowHeight			DWORD		500										; El alto de la ventana CON TODO Y LA BARRA DE TITULO Y LOS MARGENES
 messageBoxTitle			byte		'Plantilla ensamblador: Créditos',0		; Un string, se usa como título del messagebox NOTESE QUE TRAS ESCRIBIR EL STRING, SE LE CONCATENA UN 0
 messageBoxText			byte		'Programación: Edgar Abraham Santos Cervantes',10,'Arte: Estúdio Vaca Roxa',10,'https://bakudas.itch.io/generic-rpg-pack',0
 musicFilename			byte		'snake_theme.wav',0						; El nombre de la música a reproducir.
@@ -69,6 +71,7 @@ gameover byte 0
 seed dword 0
 randnum dword 0
 score dword 0
+scorearray dword 5 dup (0)
 
 dir dword 0
 facing dword 0
@@ -195,7 +198,7 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 			invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 48, 0, 16, 16, 0000FF00h
 		.ENDIF
 
-		mov ecx, nTail							; Cola de snake
+		mov ecx, nTail																									; Cola de snake
 		mov ebx, offset tailX
 		mov esi, offset tailY
 		tail_draw:
@@ -208,10 +211,22 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 			mov ecx, loop_aux
 		loop tail_draw
 
-		mov eax, fruitX
+		mov eax, fruitX																									; Fruta
 		mov ebx, fruitY
 		invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 80, 0, 16, 16, 00000FF00h
 		
+		mov ecx, 5
+		mov ebx, 100
+		mov esi, offset scorearray
+		scoreP:
+			mov loop_aux, ecx
+			mov eax, dword ptr [esi]
+			invoke PrintNumber
+			add ebx, 16
+			add esi, 4
+			mov ecx, loop_aux
+		loop scoreP
+
 		.IF gameover == 1
 			invoke TransparentBlt, auxiliarLayerContext, 133, 169, 182, 110, layerContext, 432, 0, 182, 110, 00000FF00h
 		.ENDIF
@@ -343,6 +358,12 @@ setup proc
 		add ebx, 4
 		add esi, 4
 	loop zeroTail
+	mov ecx, 5
+	mov esi, offset scorearray
+	initScorePrint:
+		mov dword ptr [esi], 0
+		add esi, 4
+	loop initScorePrint
 	mov gameover, 0
 	mov controller, 1
 	mov dir, 0
@@ -439,8 +460,9 @@ algorythm proc
 	.ENDIF
 	.IF eax == fruitX
 		.IF ebx == fruitY
-			add score, 100
 			inc nTail
+			add score, 100
+			invoke SeparateScore
 			ubicate:
 				invoke LocateFruit
 				mov ecx, nTail
@@ -488,6 +510,105 @@ PseudoRandom proc                       ; Deliver EAX: Range (0..EAX-1)
       pop   edx                         ; Restore EDX
       ret
 PseudoRandom endp                       ; Return EAX: Random number in range
+
+SeparateScore proc
+	mov eax, score
+	mov edx, 0
+	mov ebx, 10000
+	div ebx
+	mov scorearray[0], eax
+
+	mov eax, score
+	mov edx, 0
+	mov ebx, 1000
+	div ebx
+	mov ecx, eax
+	mov eax, scorearray[0]
+	mov ebx, 10
+	mul ebx
+	sub ecx, eax
+	mov scorearray[4], ecx
+
+	mov eax, score
+	mov edx, 0
+	mov ebx, 100
+	div ebx
+	mov ecx, eax
+	mov eax, scorearray[0]
+	mov ebx, 100
+	mul ebx
+	sub ecx, eax
+	mov eax, scorearray[4]
+	mov ebx, 10
+	mul ebx
+	sub ecx, eax
+	mov scorearray[8], ecx
+
+	mov eax, score
+	mov edx, 0
+	mov ebx, 10
+	div ebx
+	mov ecx, eax
+	mov eax, scorearray[0]
+	mov ebx, 1000
+	mul ebx
+	sub ecx, eax
+	mov eax, scorearray[4]
+	mov ebx, 100
+	mul ebx
+	sub ecx, eax
+	mov eax, scorearray[8]
+	mov ebx, 10
+	mul ebx
+	sub ecx, eax
+	mov scorearray[12], ecx
+
+	mov eax, score
+	mov ecx, eax
+	mov eax, scorearray[0]
+	mov ebx, 10000
+	mul ebx
+	sub ecx, eax
+	mov eax, scorearray[4]
+	mov ebx, 1000
+	mul ebx
+	sub ecx, eax
+	mov eax, scorearray[8]
+	mov ebx, 100
+	mul ebx
+	sub ecx, eax
+	mov eax, scorearray[12]
+	mov ebx, 10
+	mul ebx
+	sub ecx, eax
+	mov scorearray[16], ecx
+	ret
+SeparateScore endp
+
+PrintNumber proc
+	.IF eax == 0
+		invoke	TransparentBlt, auxiliarLayerContext, ebx, 432, 21, 27, layerContext, 621, 120, 21, 27, 00000FF00h
+	.ELSEIF eax == 1
+		invoke	TransparentBlt, auxiliarLayerContext, ebx, 432, 21, 27, layerContext, 432, 120, 21, 27, 00000FF00h
+	.ELSEIF eax == 2
+		invoke	TransparentBlt, auxiliarLayerContext, ebx, 432, 21, 27, layerContext, 453, 120, 21, 27, 00000FF00h
+	.ELSEIF eax == 3
+		invoke	TransparentBlt, auxiliarLayerContext, ebx, 432, 21, 27, layerContext, 474, 120, 21, 27, 00000FF00h
+	.ELSEIF eax == 4
+		invoke	TransparentBlt, auxiliarLayerContext, ebx, 432, 21, 27, layerContext, 495, 120, 21, 27, 00000FF00h
+	.ELSEIF eax == 5
+		invoke	TransparentBlt, auxiliarLayerContext, ebx, 432, 21, 27, layerContext, 516, 120, 21, 27, 00000FF00h
+	.ELSEIF eax == 6
+		invoke	TransparentBlt, auxiliarLayerContext, ebx, 432, 21, 27, layerContext, 537, 120, 21, 27, 00000FF00h
+	.ELSEIF eax == 7
+		invoke	TransparentBlt, auxiliarLayerContext, ebx, 432, 21, 27, layerContext, 558, 120, 21, 27, 00000FF00h
+	.ELSEIF eax == 8
+		invoke	TransparentBlt, auxiliarLayerContext, ebx, 432, 21, 27, layerContext, 579, 120, 21, 27, 00000FF00h
+	.ELSEIF eax == 9
+		invoke	TransparentBlt, auxiliarLayerContext, ebx, 432, 21, 27, layerContext, 600, 120, 21, 27, 00000FF00h
+	.ENDIF
+	ret
+PrintNumber endp
 
 playMusic proc
 	xor		ebx, ebx
