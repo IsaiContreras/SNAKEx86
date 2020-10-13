@@ -23,6 +23,8 @@ playMusic		proto
 joystickError	proto
 setup			proto
 algorythm		proto
+LocateFruit		proto
+PseudoRandom    proto
 WinMain			proto	:DWORD, :DWORD, :DWORD, :DWORD
 
 ; =========================================== DECLARACION DE VARIABLES =====================================================
@@ -64,8 +66,11 @@ controller byte 0
 mode dword 0
 gameover byte 0
 ;speed dword 0
+seed dword 0
+randnum dword 0
 
 dir dword 0
+facing dword 0
 personajeX dword 336
 personajeY dword 336
 tailX dword 1600 dup(?)
@@ -83,11 +88,11 @@ fruitY dword 0
 RGB MACRO red, green, blue
 	exitm % blue shl 16 + green shl 8 + red
 endm
-
 ;================= PROGRAMA ==================
 .code
 
 main proc
+	mov seed, eax
 	invoke	CreateThread, 0, 0, playMusic, 0, 0, 0				;Reproduce música
 	invoke	GetModuleHandleA, NULL								;Obtenemos la INSTANCIA de la Aplicación y se guarda en EAX por defecto.
 	invoke	WinMain, eax, NULL, NULL, SW_SHOWDEFAULT			;Ejecutamos WinMain con la INSTANCIA guardada en EAX.
@@ -174,20 +179,19 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 		invoke	SelectObject, layerContext, image												; Elegimos la imagen
 
 		; //// PROCESOS DE DIBUJADO \\\\
+
 		invoke	TransparentBlt, auxiliarLayerContext, 0, 0, 672, 672, layerContext, 0, 17, 672, 672, 00000FF00h			; Mundo de Snake
 
 		mov eax, personajeX																								; Cabeza de Snake
 		mov ebx, personajeY
-		.IF dir == 1
+		.IF facing == 0
 			invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 0, 0, 16, 16, 0000FF00h
-		.ELSEIF dir == 2
+		.ELSEIF facing == 1
 			invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 16, 0, 16, 16, 0000FF00h
-		.ELSEIF dir == 3
+		.ELSEIF facing == 2
 			invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 32, 0, 16, 16, 0000FF00h
-		.ELSEIF dir == 4
+		.ELSEIF facing == 3
 			invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 48, 0, 16, 16, 0000FF00h
-		.ELSEIF dir == 0
-			invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 0, 0, 16, 16, 0000FF00h
 		.ENDIF
 
 		mov ecx, nTail							; Cola de snake
@@ -202,9 +206,13 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 			add esi, 4
 			mov ecx, loop_aux
 		loop tail_draw
+
+		mov eax, fruitX
+		mov ebx, fruitY
+		invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 80, 0, 16, 16, 00000FF00h
 		
 		.IF gameover == 1
-			invoke	TransparentBlt, auxiliarLayerContext, 0, 0, 238, 110, layerContext, 672, 580, 238, 110, 00000FF00h
+			invoke TransparentBlt, auxiliarLayerContext, 247, 281, 182, 110, layerContext, 672, 0, 182, 110, 00000FF00h
 		.ENDIF
 
 		; //// MOSTRAR EN PANTALLA \\\\
@@ -233,6 +241,9 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 				.ELSEIF al == 68
 					.IF dir == 1
 						jmp jump68
+					.ENDIF
+					.IF dir == 0
+						jmp jump65
 					.ENDIF
 					mov dir, 3
 					jump68:
@@ -293,7 +304,7 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 ;	//// WM_TIMER \\\\
 	.ELSEIF message == WM_TIMER
 		.IF mode == 0
-			.IF timer_counter == 5
+			.IF timer_counter == 25
 				mov timer_counter, 0
 			.ENDIF
 		.ELSEIF mode == 1
@@ -334,16 +345,22 @@ setup proc
 	mov gameover, 0
 	mov controller, 1
 	mov dir, 0
+	mov facing, 0
 	mov personajeX, 336
 	mov personajeY, 336
 	mov nTail, 3
 	mov ecx, nTail
-	mov tailX[0], 352
-	mov tailY[0], 336
-	mov tailX[4], 368
-	mov tailY[4], 336
-	mov tailX[8], 384
-	mov tailY[8], 336
+	mov ebx, offset tailX
+	mov esi, offset tailY
+	mov eax, 352
+	initializeTail:
+		mov dword ptr [ebx], eax
+		mov dword ptr [esi], 336
+		add eax, 16
+		add ebx, 4
+		add esi, 4
+	loop initializeTail
+	invoke LocateFruit
 	ret
 setup endp
 
@@ -381,12 +398,16 @@ algorythm proc
 	.ENDIF
 	.IF dir == 1
 		sub personajeX, 16
+		mov facing, 0
 	.ELSEIF dir == 2
 		sub personajeY, 16
+		mov facing, 1
 	.ELSEIF dir == 3
 		add personajeX, 16
+		mov facing, 2
 	.ELSEIF dir == 4
 		add personajeY, 16
+		mov facing, 3
 	.ENDIF
 	mov ecx, nTail
 	mov ebx, offset tailX
@@ -416,11 +437,55 @@ algorythm proc
 	.ENDIF
 	.IF eax == fruitX
 		.IF ebx == fruitY
+			inc nTail
+			ubicate:
+				invoke LocateFruit
+				mov ecx, nTail
+				mov ebx, offset tailX
+				mov esi, offset tailY
+				checkcolide:
+				mov eax, dword ptr [ebx]
+				mov edx, dword ptr [esi]
+					.IF fruitX == eax
+						.IF fruitY == edx
+							loop ubicate
+						.ENDIF
+					.ENDIF
+					add ebx, 4
+					add esi, 4
+				loop checkcolide
 		.ENDIF
 	.ENDIF
 	mov controller, 1
 	ret
 algorythm endp
+
+LocateFruit proc
+	mov eax, 40
+	invoke PseudoRandom
+	mov ebx, 16
+	mul ebx
+	mov fruitX, eax
+	add fruitX, 16
+	mov eax, 40
+	invoke PseudoRandom
+	mov ebx, 16
+	mul ebx
+	mov fruitY, eax
+	add fruitY, 16
+LocateFruit endp
+
+PseudoRandom proc                       ; Deliver EAX: Range (0..EAX-1)
+      push  edx                         ; Preserve EDX
+      imul  edx,seed,08088405H			; EDX = RandSeed * 0x08088405 (decimal 134775813)
+      inc   edx
+      mov   seed, edx					; New RandSeed
+      mul   edx                         ; EDX:EAX = EAX * EDX
+      mov   eax, edx                    ; Return the EDX from the multiplication
+      pop   edx                         ; Restore EDX
+      ret
+ret
+PseudoRandom endp                       ; Return EAX: Random number in range
 
 playMusic proc
 	xor		ebx, ebx
