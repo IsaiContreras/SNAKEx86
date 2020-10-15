@@ -66,7 +66,7 @@ loop_aux dword 0
 timer_counter byte 0
 controller byte 0
 mode dword 0
-gameover byte 0
+gamestate byte 0									;gamestate 0 = running_game / gamestate 1 = pause / gamestate 2 = gameover
 ;speed dword 0
 seed dword 0
 randnum dword 0
@@ -227,8 +227,10 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 			mov ecx, loop_aux
 		loop scoreP
 
-		.IF gameover == 1
+		.IF gamestate == 2
 			invoke TransparentBlt, auxiliarLayerContext, 133, 169, 182, 110, layerContext, 432, 0, 182, 110, 00000FF00h
+		.ELSEIF gamestate == 1
+			invoke TransparentBlt, auxiliarLayerContext, 165, 202, 107, 43, layerContext, 432, 148, 107, 43, 00000FF00h
 		.ENDIF
 
 		; //// MOSTRAR EN PANTALLA \\\\
@@ -241,7 +243,7 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 	.ELSEIF message == WM_KEYDOWN
 		mov	eax, wParam
 		.IF controller == 1
-			.IF gameover == 0
+			.IF gamestate == 0
 				.IF al == 65
 					.IF dir == 3
 						jmp jump65
@@ -278,6 +280,15 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 		.ENDIF
 		.IF al == 82
 			invoke setup
+		.ENDIF
+		.IF al == 13
+			.IF gamestate != 2
+				.IF gamestate == 0
+					mov gamestate, 1
+				.ELSEIF gamestate == 1
+					mov gamestate, 0
+				.ENDIF
+			.ENDIF
 		.ENDIF
 
 ;	//// MM_JOY1MOVE \\\\
@@ -320,7 +331,7 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 ;	//// WM_TIMER \\\\
 	.ELSEIF message == WM_TIMER
 		.IF mode == 0
-			.IF timer_counter == 8
+			.IF timer_counter == 10
 				mov timer_counter, 0
 			.ENDIF
 		.ELSEIF mode == 1
@@ -333,7 +344,7 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 			.ENDIF
 		.ENDIF
 		.IF timer_counter == 0
-			.IF gameover == 0
+			.IF gamestate == 0
 				invoke algorythm
 			.ENDIF
 		.ENDIF
@@ -364,7 +375,7 @@ setup proc
 		mov dword ptr [esi], 0
 		add esi, 4
 	loop initScorePrint
-	mov gameover, 0
+	mov gamestate, 0
 	mov controller, 1
 	mov dir, 0
 	mov facing, 0
@@ -440,7 +451,7 @@ algorythm proc
 		mov edx, dword ptr [esi]
 		.IF eax == personajeX
 			.IF edx == personajeY
-				mov gameover, 1
+				mov gamestate, 2
 			.ENDIF
 		.ENDIF
 		add ebx, 4
@@ -449,23 +460,29 @@ algorythm proc
 	mov eax, personajeX
 	mov ebx, personajeY
 	.IF eax == 0
-		mov gameover, 1
+		mov gamestate, 2
 	.ELSEIF eax == 416
-		mov gameover, 1
+		mov gamestate, 2
 	.ENDIF
 	.IF ebx == 0
-		mov gameover, 1
+		mov gamestate, 2
 	.ELSEIF ebx == 416
-		mov gameover, 1
+		mov gamestate, 2
 	.ENDIF
 	.IF eax == fruitX
 		.IF ebx == fruitY
 			inc nTail
 			add score, 100
 			invoke SeparateScore
+			xor eax, eax
+			xor ebx, ebx
+			xor ecx, ecx
+			xor edx, edx
+			xor esi, esi
 			ubicate:
 				invoke LocateFruit
 				mov ecx, nTail
+				dec ecx
 				mov ebx, offset tailX
 				mov esi, offset tailY
 				checkcolide:
