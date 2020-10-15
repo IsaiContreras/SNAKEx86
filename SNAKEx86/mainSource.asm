@@ -77,8 +77,8 @@ dir dword 0
 facing dword 0
 personajeX dword 0
 personajeY dword 0
-tailX dword 400 dup(?)
-tailY dword 400 dup(?)
+tailX dword 400 dup(0)
+tailY dword 400 dup(0)
 prevX dword 0
 prevY dword 0
 prev2X dword 0
@@ -384,15 +384,15 @@ setup proc
 	mov nTail, 3
 	mov score, 0
 	mov ecx, nTail
-	mov ebx, offset tailX
-	mov esi, offset tailY
+	mov esi, offset tailX
+	mov edi, offset tailY
 	mov eax, 240
 	initializeTail:
-		mov dword ptr [ebx], eax
-		mov dword ptr [esi], 224
+		mov dword ptr [esi], eax
+		mov dword ptr [edi], 224
 		add eax, 16
-		add ebx, 4
 		add esi, 4
+		add edi, 4
 	loop initializeTail
 	invoke LocateFruit
 	ret
@@ -409,25 +409,25 @@ algorythm proc
 		mov eax, personajeY
 		mov tailY[0], eax
 		mov ecx, nTail
-		mov ebx, offset tailX
-		mov esi, offset tailY
-		add ebx, 4
+		mov esi, offset tailX
+		mov edi, offset tailY
 		add esi, 4
+		add edi, 4
 		move_tail:
-			mov eax, dword ptr [ebx]
-			mov prev2X, eax
 			mov eax, dword ptr [esi]
+			mov prev2X, eax
+			mov eax, dword ptr [edi]
 			mov prev2Y, eax
 			mov eax, prevX
-			mov dword ptr [ebx], eax
-			mov eax, prevY
 			mov dword ptr [esi], eax
+			mov eax, prevY
+			mov dword ptr [edi], eax
 			mov eax, prev2X
 			mov prevX, eax
 			mov eax, prev2Y
 			mov prevY, eax
-			add ebx, 4
 			add esi, 4
+			add edi, 4
 		loop move_tail
 	.ENDIF
 	.IF dir == 1
@@ -444,18 +444,18 @@ algorythm proc
 		mov facing, 3
 	.ENDIF
 	mov ecx, nTail
-	mov ebx, offset tailX
-	mov esi, offset tailY
+	mov esi, offset tailX
+	mov edi, offset tailY
 	colide_yourself:
-		mov eax, dword ptr [ebx]
-		mov edx, dword ptr [esi]
+		mov eax, dword ptr [esi]
+		mov ebx, dword ptr [edi]
 		.IF eax == personajeX
-			.IF edx == personajeY
+			.IF ebx == personajeY
 				mov gamestate, 2
 			.ENDIF
 		.ENDIF
-		add ebx, 4
 		add esi, 4
+		add edi, 4
 	loop colide_yourself
 	mov eax, personajeX
 	mov ebx, personajeY
@@ -473,29 +473,29 @@ algorythm proc
 		.IF ebx == fruitY
 			inc nTail
 			add score, 100
-			invoke SeparateScore
-			xor eax, eax
-			xor ebx, ebx
-			xor ecx, ecx
-			xor edx, edx
-			xor esi, esi
 			ubicate:
 				invoke LocateFruit
+				mov eax, 0
+				mov ebx, 0
+				mov ecx, 0
+				mov edx, 0
+				mov esi, 0
+				mov edi, 0
 				mov ecx, nTail
-				dec ecx
-				mov ebx, offset tailX
-				mov esi, offset tailY
+				mov esi, offset tailX
+				mov edi, offset tailY
 				checkcolide:
-				mov eax, dword ptr [ebx]
-				mov edx, dword ptr [esi]
+				mov eax, dword ptr [esi]
+				mov ebx, dword ptr [edi]
 					.IF fruitX == eax
-						.IF fruitY == edx
+						.IF fruitY == ebx
 							loop ubicate
 						.ENDIF
 					.ENDIF
-					add ebx, 4
 					add esi, 4
+					add edi, 4
 				loop checkcolide
+				invoke SeparateScore
 		.ENDIF
 	.ENDIF
 	mov controller, 1
