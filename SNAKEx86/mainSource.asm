@@ -24,6 +24,7 @@ joystickError	proto
 setup			proto
 algorythm		proto
 LocateFruit		proto
+NewFruit		proto
 PseudoRandom    proto
 SeparateScore	proto
 PrintNumber		proto
@@ -51,8 +52,8 @@ joystickErrorText		byte		'No se pudo inicializar el joystick', 0
 
 ; ========================================== VARIABLES QUE PROBABLEMENTE QUIERAN CAMBIAR ===================================
 windowTitle				db			"SNAKEx86",0							; El título de la ventana
-windowWidth				DWORD		448										; El ancho de la venata CON TODO Y LA BARRA DE TITULO Y LOS MARGENES
-windowHeight			DWORD		500										; El alto de la ventana CON TODO Y LA BARRA DE TITULO Y LOS MARGENES
+windowWidth				DWORD		368										; El ancho de la venata CON TODO Y LA BARRA DE TITULO Y LOS MARGENES
+windowHeight			DWORD		426										; El alto de la ventana CON TODO Y LA BARRA DE TITULO Y LOS MARGENES
 messageBoxTitle			byte		'Plantilla ensamblador: Créditos',0		; Un string, se usa como título del messagebox NOTESE QUE TRAS ESCRIBIR EL STRING, SE LE CONCATENA UN 0
 messageBoxText			byte		'Programación: Edgar Abraham Santos Cervantes',10,'Arte: Estúdio Vaca Roxa',10,'https://bakudas.itch.io/generic-rpg-pack',0
 musicFilename			byte		'snake_theme.wav',0						; El nombre de la música a reproducir.
@@ -66,7 +67,7 @@ loop_aux dword 0
 timer_counter byte 0
 controller byte 0
 mode dword 0
-gamestate byte 0									;gamestate 0 = running_game / gamestate 1 = pause / gamestate 2 = gameover
+gamestate byte 0								;gamestate 0 = running_game / gamestate 1 = pause / gamestate 2 = gameover / gamestate 3 = reach_perfect
 ;speed dword 0
 seed dword 0
 randnum dword 0
@@ -83,7 +84,7 @@ prevX dword 0
 prevY dword 0
 prev2X dword 0
 prev2Y dword 0
-nTail dword 3
+nTail dword 0
 
 fruitX dword 0
 fruitY dword 0
@@ -153,19 +154,17 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 		invoke	LoadImage, NULL, addr imageFilename, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE		;Cargamos la imagen
 		mov		image, eax
 		invoke	joyGetNumDevs																	; Habilitamos el joystick
-;		.IF eax == 0
-;			invoke joystickError	
-;		.ELSE
-;			invoke	joyGetPos, JOYSTICKID1, addr joystickInfo
-;			.IF eax != JOYERR_NOERROR
-;				invoke joystickError
-;			.ELSE
-;				invoke	joySetCapture, handler, JOYSTICKID1, NULL, FALSE
-;				.IF eax != 0
-;					invoke joystickError
-;				.ENDIF
-;			.ENDIF
-;		.ENDIF
+		.IF
+			invoke	joyGetPos, JOYSTICKID1, addr joystickInfo
+			.IF eax != JOYERR_NOERROR
+				invoke joystickError
+			.ELSE
+				invoke	joySetCapture, handler, JOYSTICKID1, NULL, FALSE
+				.IF eax != 0
+					invoke joystickError
+				.ENDIF
+			.ENDIF
+		.ENDIF
 		invoke	SetTimer, handler, 33, 10, NULL
 		invoke setup
 
@@ -184,7 +183,7 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 
 		; //// PROCESOS DE DIBUJADO \\\\
 
-		invoke	TransparentBlt, auxiliarLayerContext, 0, 0, 432, 432, layerContext, 0, 17, 432, 432, 00000FF00h			; Mundo de Snake
+		invoke	TransparentBlt, auxiliarLayerContext, 0, 0, 352, 352, layerContext, 0, 17, 352, 352, 00000FF00h			; Mundo de Snake
 
 		mov eax, personajeX																								; Cabeza de Snake
 		mov ebx, personajeY
@@ -211,10 +210,12 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 			mov ecx, loop_aux
 		loop tail_draw
 
-		mov eax, fruitX																									; Fruta
-		mov ebx, fruitY
-		invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 80, 0, 16, 16, 00000FF00h
-		
+		.IF gamestate != 3																								; Fruta
+			mov eax, fruitX
+			mov ebx, fruitY
+			invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 80, 0, 16, 16, 00000FF00h
+		.ENDIF
+
 		mov ecx, 5
 		mov ebx, 100
 		mov esi, offset scorearray
@@ -227,10 +228,12 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 			mov ecx, loop_aux
 		loop scoreP
 
-		.IF gamestate == 2
-			invoke TransparentBlt, auxiliarLayerContext, 133, 169, 182, 110, layerContext, 432, 0, 182, 110, 00000FF00h
-		.ELSEIF gamestate == 1
-			invoke TransparentBlt, auxiliarLayerContext, 165, 202, 107, 43, layerContext, 432, 148, 107, 43, 00000FF00h
+		.IF gamestate == 1
+			invoke TransparentBlt, auxiliarLayerContext, 122, 154, 107, 43, layerContext, 352, 148, 107, 43, 00000FF00h
+		.ELSEIF gamestate == 2
+			invoke TransparentBlt, auxiliarLayerContext, 85, 121, 182, 110, layerContext, 352, 0, 182, 110, 00000FF00h
+		.ELSEIF gamestate == 3
+			invoke TransparentBlt, auxiliarLayerContext, 85, 121, 206, 110, layerContext, 352, 191, 206, 110, 00000FF00h
 		.ENDIF
 
 		; //// MOSTRAR EN PANTALLA \\\\
@@ -261,7 +264,7 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 						jmp jump68
 					.ENDIF
 					.IF dir == 0
-						jmp jump65
+						jmp jump68
 					.ENDIF
 					mov dir, 3
 					jump68:
@@ -322,10 +325,51 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 		; Pueden comparar que botón se presionó haciendo un AND
 		xor	ebx, ebx
 		mov	ebx, wParam
-		and	ebx, JOY_BUTTON1
-		; Esto es un ejemplo, si presionamos el botón 1 del joystick, mostrará los créditos
-		.IF	ebx != 0
-			invoke credits, handler
+		.IF controller == 1
+			.IF gamestate == 0
+				and	ebx, JOY_BUTTON3
+				.IF ebx != 0 
+					.IF dir == 3
+						jmp jump65_c
+					.ENDIF
+					mov dir, 1
+					jump65_c:
+				.ENDIF
+				xor	ebx, ebx
+				mov	ebx, wParam 
+				and ebx, JOY_BUTTON4
+				.IF ebx != 0
+					.IF dir == 4
+						jmp jump87_c
+					.ENDIF
+					mov dir, 2
+					jump87_c:
+				.ENDIF
+				xor	ebx, ebx
+				mov	ebx, wParam 
+				and ebx, JOY_BUTTON2
+				.IF ebx != 0
+					.IF dir == 1
+						jmp jump68_c
+					.ENDIF
+					.IF dir == 0
+						jmp jump68_c
+					.ENDIF
+					mov dir, 3
+					jump68_c:
+				.ENDIF
+				xor	ebx, ebx
+				mov	ebx, wParam 
+				and ebx, JOY_BUTTON1
+				.IF ebx != 0
+					.IF dir == 2
+						jmp jump83_c
+					.ENDIF
+					mov dir, 4
+					jump83_c:
+				.ENDIF
+			.ENDIF
+			mov controller, 0
 		.ENDIF
 
 ;	//// WM_TIMER \\\\
@@ -348,8 +392,8 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 				invoke algorythm
 			.ENDIF
 		.ENDIF
-		inc timer_counter
-		invoke	InvalidateRect, handler, NULL, FALSE
+	inc timer_counter
+	invoke	InvalidateRect, handler, NULL, FALSE
 
 ;	//// WM_DESTROY \\\\
 	.ELSEIF message == WM_DESTROY
@@ -379,22 +423,24 @@ setup proc
 	mov controller, 1
 	mov dir, 0
 	mov facing, 0
-	mov personajeX, 224
-	mov personajeY, 224
+	mov personajeX, 176
+	mov personajeY, 176
 	mov nTail, 3
 	mov score, 0
 	mov ecx, nTail
 	mov esi, offset tailX
 	mov edi, offset tailY
-	mov eax, 240
+	mov eax, personajeX
+	add eax, 16
+	mov ebx, personajeY
 	initializeTail:
 		mov dword ptr [esi], eax
-		mov dword ptr [edi], 224
+		mov dword ptr [edi], ebx
 		add eax, 16
 		add esi, 4
 		add edi, 4
 	loop initializeTail
-	invoke LocateFruit
+	invoke NewFruit
 	ret
 setup endp
 
@@ -461,46 +507,58 @@ algorythm proc
 	mov ebx, personajeY
 	.IF eax == 0
 		mov gamestate, 2
-	.ELSEIF eax == 416
+	.ELSEIF eax == 336
 		mov gamestate, 2
 	.ENDIF
 	.IF ebx == 0
 		mov gamestate, 2
-	.ELSEIF ebx == 416
+	.ELSEIF ebx == 336
 		mov gamestate, 2
 	.ENDIF
 	.IF eax == fruitX
 		.IF ebx == fruitY
 			inc nTail
 			add score, 100
-			ubicate:
-				invoke LocateFruit
-				mov eax, 0
-				mov ebx, 0
-				mov ecx, 0
-				mov edx, 0
-				mov esi, 0
-				mov edi, 0
-				mov ecx, nTail
-				mov esi, offset tailX
-				mov edi, offset tailY
-				checkcolide:
-				mov eax, dword ptr [esi]
-				mov ebx, dword ptr [edi]
-					.IF fruitX == eax
-						.IF fruitY == ebx
-							loop ubicate
-						.ENDIF
-					.ENDIF
-					add esi, 4
-					add edi, 4
-				loop checkcolide
-				invoke SeparateScore
+			.IF nTail == 396
+				mov gamestate, 3
+			.ELSE
+				invoke NewFruit
+			.ENDIF
 		.ENDIF
 	.ENDIF
+	invoke SeparateScore
 	mov controller, 1
 	ret
 algorythm endp
+
+NewFruit proc
+	ubicate:
+		invoke LocateFruit
+		mov eax, 0
+		mov ebx, 0
+		mov ecx, 0
+		mov edx, 0
+		mov esi, 0
+		mov edi, 0
+		mov ecx, nTail
+		mov esi, offset tailX
+		mov edi, offset tailY
+		checkcolide:
+		mov loop_aux, ecx
+		mov eax, dword ptr [esi]
+		mov ebx, dword ptr [edi]
+			.IF fruitX == eax
+				.IF fruitY == ebx
+					mov ecx, loop_aux
+					loop ubicate
+				.ENDIF
+			.ENDIF
+			add esi, 4
+			add edi, 4
+		mov ecx, loop_aux
+		loop checkcolide
+	ret
+NewFruit endp
 
 LocateFruit proc
 	mov eax, 20
@@ -604,25 +662,25 @@ SeparateScore endp
 
 PrintNumber proc
 	.IF eax == 0
-		invoke	TransparentBlt, auxiliarLayerContext, ebx, 432, 21, 27, layerContext, 621, 120, 21, 27, 00000FF00h
+		invoke	TransparentBlt, auxiliarLayerContext, ebx, 354, 21, 27, layerContext, 541, 120, 21, 27, 00000FF00h
 	.ELSEIF eax == 1
-		invoke	TransparentBlt, auxiliarLayerContext, ebx, 432, 21, 27, layerContext, 432, 120, 21, 27, 00000FF00h
+		invoke	TransparentBlt, auxiliarLayerContext, ebx, 354, 21, 27, layerContext, 352, 120, 21, 27, 00000FF00h
 	.ELSEIF eax == 2
-		invoke	TransparentBlt, auxiliarLayerContext, ebx, 432, 21, 27, layerContext, 453, 120, 21, 27, 00000FF00h
+		invoke	TransparentBlt, auxiliarLayerContext, ebx, 354, 21, 27, layerContext, 373, 120, 21, 27, 00000FF00h
 	.ELSEIF eax == 3
-		invoke	TransparentBlt, auxiliarLayerContext, ebx, 432, 21, 27, layerContext, 474, 120, 21, 27, 00000FF00h
+		invoke	TransparentBlt, auxiliarLayerContext, ebx, 354, 21, 27, layerContext, 394, 120, 21, 27, 00000FF00h
 	.ELSEIF eax == 4
-		invoke	TransparentBlt, auxiliarLayerContext, ebx, 432, 21, 27, layerContext, 495, 120, 21, 27, 00000FF00h
+		invoke	TransparentBlt, auxiliarLayerContext, ebx, 354, 21, 27, layerContext, 415, 120, 21, 27, 00000FF00h
 	.ELSEIF eax == 5
-		invoke	TransparentBlt, auxiliarLayerContext, ebx, 432, 21, 27, layerContext, 516, 120, 21, 27, 00000FF00h
+		invoke	TransparentBlt, auxiliarLayerContext, ebx, 354, 21, 27, layerContext, 436, 120, 21, 27, 00000FF00h
 	.ELSEIF eax == 6
-		invoke	TransparentBlt, auxiliarLayerContext, ebx, 432, 21, 27, layerContext, 537, 120, 21, 27, 00000FF00h
+		invoke	TransparentBlt, auxiliarLayerContext, ebx, 354, 21, 27, layerContext, 457, 120, 21, 27, 00000FF00h
 	.ELSEIF eax == 7
-		invoke	TransparentBlt, auxiliarLayerContext, ebx, 432, 21, 27, layerContext, 558, 120, 21, 27, 00000FF00h
+		invoke	TransparentBlt, auxiliarLayerContext, ebx, 354, 21, 27, layerContext, 478, 120, 21, 27, 00000FF00h
 	.ELSEIF eax == 8
-		invoke	TransparentBlt, auxiliarLayerContext, ebx, 432, 21, 27, layerContext, 579, 120, 21, 27, 00000FF00h
+		invoke	TransparentBlt, auxiliarLayerContext, ebx, 354, 21, 27, layerContext, 499, 120, 21, 27, 00000FF00h
 	.ELSEIF eax == 9
-		invoke	TransparentBlt, auxiliarLayerContext, ebx, 432, 21, 27, layerContext, 600, 120, 21, 27, 00000FF00h
+		invoke	TransparentBlt, auxiliarLayerContext, ebx, 354, 21, 27, layerContext, 520, 120, 21, 27, 00000FF00h
 	.ENDIF
 	ret
 PrintNumber endp
