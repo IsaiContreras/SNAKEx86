@@ -26,8 +26,10 @@ algorythm		proto
 LocateFruit		proto
 NewFruit		proto
 PseudoRandom    proto
-SeparateScore	proto
-PrintNumber		proto
+SeparateScore	proto	:DWORD
+PrintScore		proto	:DWORD, :DWORD
+PrintNumber		proto	:DWORD, :DWORD
+GameoverProc	proto
 WinMain			proto	:DWORD, :DWORD, :DWORD, :DWORD
 
 ; =========================================== DECLARACION DE VARIABLES =====================================================
@@ -73,6 +75,7 @@ seed dword 0
 randnum dword 0
 score dword 0
 scorearray dword 5 dup (0)
+savescore dword 6 dup (0)
 
 dir dword 0
 facing dword 0
@@ -216,22 +219,28 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 			invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 80, 0, 16, 16, 00000FF00h
 		.ENDIF
 
-		mov ecx, 5
-		mov ebx, 100
-		mov esi, offset scorearray
-		scoreP:
-			mov loop_aux, ecx
-			mov eax, dword ptr [esi]
-			invoke PrintNumber
-			add ebx, 16
-			add esi, 4
-			mov ecx, loop_aux
-		loop scoreP
+		invoke PrintScore, 100, 354
 
 		.IF gamestate == 1
 			invoke TransparentBlt, auxiliarLayerContext, 122, 154, 107, 43, layerContext, 352, 148, 107, 43, 00000FF00h
 		.ELSEIF gamestate == 2
-			invoke TransparentBlt, auxiliarLayerContext, 85, 121, 182, 110, layerContext, 352, 0, 182, 110, 00000FF00h
+			invoke TransparentBlt, auxiliarLayerContext, 85, 90, 182, 110, layerContext, 352, 0, 182, 110, 00000FF00h
+			mov esi, offset savescore
+			mov ebx, 200
+			mov ecx, 6
+			print_scores:
+				push ecx
+				mov eax, dword ptr [esi]
+				push ebx
+				invoke SeparateScore, eax
+				pop ebx
+				push esi
+				invoke PrintScore, 120, ebx
+				pop esi
+				add ebx, 20
+				add esi, 4
+				pop ecx
+			loop print_scores
 		.ELSEIF gamestate == 3
 			invoke TransparentBlt, auxiliarLayerContext, 85, 121, 206, 110, layerContext, 352, 191, 206, 110, 00000FF00h
 		.ENDIF
@@ -498,6 +507,7 @@ algorythm proc
 		.IF eax == personajeX
 			.IF ebx == personajeY
 				mov gamestate, 2
+				invoke GameoverProc
 			.ENDIF
 		.ENDIF
 		add esi, 4
@@ -507,13 +517,17 @@ algorythm proc
 	mov ebx, personajeY
 	.IF eax == 0
 		mov gamestate, 2
+		invoke GameoverProc
 	.ELSEIF eax == 336
 		mov gamestate, 2
+		invoke GameoverProc
 	.ENDIF
 	.IF ebx == 0
 		mov gamestate, 2
+		invoke GameoverProc
 	.ELSEIF ebx == 336
 		mov gamestate, 2
+		invoke GameoverProc
 	.ENDIF
 	.IF eax == fruitX
 		.IF ebx == fruitY
@@ -526,7 +540,7 @@ algorythm proc
 			.ENDIF
 		.ENDIF
 	.ENDIF
-	invoke SeparateScore
+	invoke SeparateScore, score
 	mov controller, 1
 	ret
 algorythm endp
@@ -586,14 +600,14 @@ PseudoRandom proc                       ; Deliver EAX: Range (0..EAX-1)
       ret
 PseudoRandom endp                       ; Return EAX: Random number in range
 
-SeparateScore proc
-	mov eax, score
+SeparateScore proc scr:dword
+	mov eax, scr
 	mov edx, 0
 	mov ebx, 10000
 	div ebx
 	mov scorearray[0], eax
 
-	mov eax, score
+	mov eax, scr
 	mov edx, 0
 	mov ebx, 1000
 	div ebx
@@ -604,7 +618,7 @@ SeparateScore proc
 	sub ecx, eax
 	mov scorearray[4], ecx
 
-	mov eax, score
+	mov eax, scr
 	mov edx, 0
 	mov ebx, 100
 	div ebx
@@ -619,7 +633,7 @@ SeparateScore proc
 	sub ecx, eax
 	mov scorearray[8], ecx
 
-	mov eax, score
+	mov eax, scr
 	mov edx, 0
 	mov ebx, 10
 	div ebx
@@ -638,7 +652,7 @@ SeparateScore proc
 	sub ecx, eax
 	mov scorearray[12], ecx
 
-	mov eax, score
+	mov eax, scr
 	mov ecx, eax
 	mov eax, scorearray[0]
 	mov ebx, 10000
@@ -660,30 +674,69 @@ SeparateScore proc
 	ret
 SeparateScore endp
 
-PrintNumber proc
+PrintScore proc posx:dword, posy:dword
+	mov ecx, 5
+	mov esi, offset scorearray
+	scoreP:
+		mov loop_aux, ecx
+		mov eax, dword ptr [esi]
+		invoke PrintNumber, posx, posy
+		add posx, 16
+		add esi, 4
+		mov ecx, loop_aux
+	loop scoreP
+	ret
+PrintScore endp
+
+PrintNumber proc posx:dword, posy:dword
 	.IF eax == 0
-		invoke	TransparentBlt, auxiliarLayerContext, ebx, 354, 21, 27, layerContext, 541, 120, 21, 27, 00000FF00h
+		invoke	TransparentBlt, auxiliarLayerContext, posx, posy, 21, 27, layerContext, 541, 120, 21, 27, 00000FF00h
 	.ELSEIF eax == 1
-		invoke	TransparentBlt, auxiliarLayerContext, ebx, 354, 21, 27, layerContext, 352, 120, 21, 27, 00000FF00h
+		invoke	TransparentBlt, auxiliarLayerContext, posx, posy, 21, 27, layerContext, 352, 120, 21, 27, 00000FF00h
 	.ELSEIF eax == 2
-		invoke	TransparentBlt, auxiliarLayerContext, ebx, 354, 21, 27, layerContext, 373, 120, 21, 27, 00000FF00h
+		invoke	TransparentBlt, auxiliarLayerContext, posx, posy, 21, 27, layerContext, 373, 120, 21, 27, 00000FF00h
 	.ELSEIF eax == 3
-		invoke	TransparentBlt, auxiliarLayerContext, ebx, 354, 21, 27, layerContext, 394, 120, 21, 27, 00000FF00h
+		invoke	TransparentBlt, auxiliarLayerContext, posx, posy, 21, 27, layerContext, 394, 120, 21, 27, 00000FF00h
 	.ELSEIF eax == 4
-		invoke	TransparentBlt, auxiliarLayerContext, ebx, 354, 21, 27, layerContext, 415, 120, 21, 27, 00000FF00h
+		invoke	TransparentBlt, auxiliarLayerContext, posx, posy, 21, 27, layerContext, 415, 120, 21, 27, 00000FF00h
 	.ELSEIF eax == 5
-		invoke	TransparentBlt, auxiliarLayerContext, ebx, 354, 21, 27, layerContext, 436, 120, 21, 27, 00000FF00h
+		invoke	TransparentBlt, auxiliarLayerContext, posx, posy, 21, 27, layerContext, 436, 120, 21, 27, 00000FF00h
 	.ELSEIF eax == 6
-		invoke	TransparentBlt, auxiliarLayerContext, ebx, 354, 21, 27, layerContext, 457, 120, 21, 27, 00000FF00h
+		invoke	TransparentBlt, auxiliarLayerContext, posx, posy, 21, 27, layerContext, 457, 120, 21, 27, 00000FF00h
 	.ELSEIF eax == 7
-		invoke	TransparentBlt, auxiliarLayerContext, ebx, 354, 21, 27, layerContext, 478, 120, 21, 27, 00000FF00h
+		invoke	TransparentBlt, auxiliarLayerContext, posx, posy, 21, 27, layerContext, 478, 120, 21, 27, 00000FF00h
 	.ELSEIF eax == 8
-		invoke	TransparentBlt, auxiliarLayerContext, ebx, 354, 21, 27, layerContext, 499, 120, 21, 27, 00000FF00h
+		invoke	TransparentBlt, auxiliarLayerContext, posx, posy, 21, 27, layerContext, 499, 120, 21, 27, 00000FF00h
 	.ELSEIF eax == 9
-		invoke	TransparentBlt, auxiliarLayerContext, ebx, 354, 21, 27, layerContext, 520, 120, 21, 27, 00000FF00h
+		invoke	TransparentBlt, auxiliarLayerContext, posx, posy, 21, 27, layerContext, 520, 120, 21, 27, 00000FF00h
 	.ENDIF
 	ret
 PrintNumber endp
+
+GameoverProc proc
+	mov ecx, 5
+	mov esi, offset savescore
+	mov edi, offset scorearray
+	scoreset:
+		mov eax, dword ptr [esi]
+		mov dword ptr [edi], eax
+		add esi, 4
+		add edi, 4
+	loop scoreset
+	mov ecx, 5
+	mov esi, offset savescore
+	mov edi, offset scorearray
+	add esi, 4
+	scoredown:
+		mov eax, dword ptr [edi]
+		mov dword ptr [esi], eax
+		add esi, 4
+		add edi, 4
+	loop scoredown
+	mov eax, score
+	mov savescore[0], eax
+	ret
+GameoverProc endp
 
 playMusic proc
 	xor		ebx, ebx
