@@ -68,8 +68,11 @@ imageFilename			byte		'snake_spritesheet.bmp',0				; El manejador de la imagen a
 timer_counter byte 0
 controller byte 0
 mode dword 0
-gamestate byte 0								;gamestate 0 = running_game / gamestate 1 = pause / gamestate 2 = gameover / gamestate 3 = reach_perfect
-;speed dword 0
+gamestate byte 0								; gamestate 0 = mainmenu / gamestate 1 = running_game / gamestate 2 = pause / gamestate 3 = gameover / gamestate 4 = reach_perfect
+speed byte 0
+maxspeed byte 0
+speedchange byte 0
+fruitcount byte 0
 seed dword 0
 randnum dword 0
 score dword 0
@@ -95,6 +98,7 @@ fruitY dword 0
 RGB MACRO red, green, blue
 	exitm % blue shl 16 + green shl 8 + red
 endm
+
 ;================= PROGRAMA ==================
 .code
 
@@ -168,7 +172,6 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 			.ENDIF
 		.ENDIF
 		invoke	SetTimer, handler, 33, 10, NULL
-		invoke setup
 
 ;	//// WM_PAINT \\\\
 	.ELSEIF message == WM_PAINT
@@ -187,61 +190,65 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 
 		invoke	TransparentBlt, auxiliarLayerContext, 0, 0, 352, 352, layerContext, 0, 17, 352, 352, 00000FF00h			; Mundo de Snake
 
-		mov eax, personajeX																								; Cabeza de Snake
-		mov ebx, personajeY
-		.IF facing == 0
-			invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 0, 0, 16, 16, 0000FF00h
-		.ELSEIF facing == 1
-			invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 16, 0, 16, 16, 0000FF00h
-		.ELSEIF facing == 2
-			invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 32, 0, 16, 16, 0000FF00h
-		.ELSEIF facing == 3
-			invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 48, 0, 16, 16, 0000FF00h
-		.ENDIF
-
-		mov ecx, nTail																									; Cola de snake
-		mov ebx, offset tailX
-		mov esi, offset tailY
-		tail_draw:
-			push ecx
-			mov eax, dword ptr [ebx]
-			mov edx, dword ptr [esi]
-			invoke	TransparentBlt, auxiliarLayerContext, eax, edx, 16, 16, layerContext, 64, 0, 16, 16, 00000FF00h
-			add ebx, 4
-			add esi, 4
-			pop ecx
-		loop tail_draw
-
-		.IF gamestate != 3																								; Fruta
-			mov eax, fruitX
-			mov ebx, fruitY
-			invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 80, 0, 16, 16, 00000FF00h
-		.ENDIF
-
-		invoke PrintScore, 100, 354
-
-		.IF gamestate == 1
-			invoke TransparentBlt, auxiliarLayerContext, 122, 154, 107, 43, layerContext, 352, 148, 107, 43, 00000FF00h
-		.ELSEIF gamestate == 2
-			invoke TransparentBlt, auxiliarLayerContext, 85, 35, 182, 110, layerContext, 352, 0, 182, 110, 00000FF00h
-			mov esi, offset savescore
-			mov ebx, 160
-			mov ecx, 6
-			print_scores:
+		.IF gamestate != 0
+			mov ecx, nTail																									; Cola de snake
+			mov ebx, offset tailX
+			mov esi, offset tailY
+			tail_draw:
 				push ecx
-				mov eax, dword ptr [esi]
-				push ebx
-				invoke SeparateScore, eax
-				pop ebx
-				push esi
-				invoke PrintScore, 135, ebx
-				pop esi
-				add ebx, 28
+				mov eax, dword ptr [ebx]
+				mov edx, dword ptr [esi]
+				invoke	TransparentBlt, auxiliarLayerContext, eax, edx, 16, 16, layerContext, 64, 0, 16, 16, 00000FF00h
+				add ebx, 4
 				add esi, 4
 				pop ecx
-			loop print_scores
-		.ELSEIF gamestate == 3
-			invoke TransparentBlt, auxiliarLayerContext, 85, 121, 206, 110, layerContext, 352, 191, 206, 110, 00000FF00h
+			loop tail_draw
+
+			mov eax, personajeX																								; Cabeza de Snake
+			mov ebx, personajeY
+			.IF facing == 0
+				invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 0, 0, 16, 16, 0000FF00h
+			.ELSEIF facing == 1
+				invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 16, 0, 16, 16, 0000FF00h
+			.ELSEIF facing == 2
+				invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 32, 0, 16, 16, 0000FF00h
+			.ELSEIF facing == 3
+				invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 48, 0, 16, 16, 0000FF00h
+			.ENDIF
+
+			.IF gamestate != 4																								; Fruta
+				mov eax, fruitX
+				mov ebx, fruitY
+				invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 80, 0, 16, 16, 00000FF00h
+			.ENDIF
+
+			invoke PrintScore, 100, 354
+
+			.IF gamestate == 2
+				invoke TransparentBlt, auxiliarLayerContext, 122, 154, 107, 43, layerContext, 352, 148, 107, 43, 00000FF00h
+			.ELSEIF gamestate == 3
+				invoke TransparentBlt, auxiliarLayerContext, 85, 35, 182, 110, layerContext, 352, 0, 182, 110, 00000FF00h
+				mov esi, offset savescore
+				mov ebx, 160
+				mov ecx, 6
+				print_scores:
+					push ecx
+					mov eax, dword ptr [esi]
+					push ebx
+					invoke SeparateScore, eax
+					pop ebx
+					push esi
+					invoke PrintScore, 135, ebx
+					pop esi
+					add ebx, 28
+					add esi, 4
+					pop ecx
+				loop print_scores
+			.ELSEIF gamestate == 4
+				invoke TransparentBlt, auxiliarLayerContext, 85, 121, 206, 110, layerContext, 352, 191, 206, 110, 00000FF00h
+			.ENDIF
+		.ELSEIF
+			invoke TransparentBlt, auxiliarLayerContext, 43, 30, 266, 230, layerContext, 568, 0, 266, 230, 00000FF00h
 		.ENDIF
 
 		; //// MOSTRAR EN PANTALLA \\\\
@@ -254,7 +261,7 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 	.ELSEIF message == WM_KEYDOWN
 		mov	eax, wParam
 		.IF controller == 1
-			.IF gamestate == 0
+			.IF gamestate == 1
 				.IF al == 65
 					.IF dir == 3
 						jmp jump65
@@ -290,15 +297,27 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 			invoke	credits, handler
 		.ENDIF
 		.IF al == 82
-			invoke setup
+			mov gamestate, 0
 		.ENDIF
 		.IF al == 13
-			.IF gamestate != 2
-				.IF gamestate == 0
+			.IF gamestate != 3
+				.IF gamestate == 1
+					mov gamestate, 2
+				.ELSEIF gamestate == 2
 					mov gamestate, 1
-				.ELSEIF gamestate == 1
-					mov gamestate, 0
 				.ENDIF
+			.ENDIF
+		.ENDIF
+		.IF gamestate == 0
+			.IF al == 65
+				mov mode, 0
+				invoke setup
+			.ELSEIF al == 83
+				mov mode, 1
+				invoke setup
+			.ELSEIF al == 68
+				mov mode, 2
+				invoke setup
 			.ENDIF
 		.ENDIF
 
@@ -334,7 +353,7 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 		xor	ebx, ebx
 		mov	ebx, wParam
 		.IF controller == 1
-			.IF gamestate == 0
+			.IF gamestate == 1
 				and	ebx, JOY_BUTTON3
 				.IF ebx != 0 
 					.IF dir == 3
@@ -383,20 +402,23 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 ;	//// WM_TIMER \\\\
 	.ELSEIF message == WM_TIMER
 		.IF mode == 0
-			.IF timer_counter == 10
+			mov al, speed
+			.IF timer_counter == al
 				mov timer_counter, 0
 			.ENDIF
 		.ELSEIF mode == 1
-			.IF timer_counter == 20
+			mov al, speed
+			.IF timer_counter == al
 				mov timer_counter, 0
 			.ENDIF
-		.ELSE
-			.IF timer_counter == 20
+		.ELSEIF mode == 2
+			mov al, speed
+			.IF timer_counter == al
 				mov timer_counter, 0
 			.ENDIF
 		.ENDIF
 		.IF timer_counter == 0
-			.IF gamestate == 0
+			.IF gamestate == 1
 				invoke algorythm
 			.ENDIF
 		.ENDIF
@@ -427,7 +449,7 @@ setup proc
 		mov dword ptr [esi], 0
 		add esi, 4
 	loop initScorePrint
-	mov gamestate, 0
+	mov gamestate, 1
 	mov controller, 1
 	mov dir, 0
 	mov facing, 0
@@ -435,6 +457,20 @@ setup proc
 	mov personajeY, 176
 	mov nTail, 3
 	mov score, 0
+	.IF mode == 0
+		mov speed, 22
+		mov speedchange, 12
+		mov maxspeed, 12
+	.ELSEIF mode == 1
+		mov speed, 18
+		mov speedchange, 10
+		mov maxspeed, 8
+	.ELSEIF mode == 2
+		mov speed, 16
+		mov speedchange, 8
+		mov maxspeed, 6
+	.ENDIF
+	mov fruitcount, 0
 	mov ecx, nTail
 	mov esi, offset tailX
 	mov edi, offset tailY
@@ -505,7 +541,7 @@ algorythm proc
 		mov ebx, dword ptr [edi]
 		.IF eax == personajeX
 			.IF ebx == personajeY
-				mov gamestate, 2
+				mov gamestate, 3
 				invoke GameoverProc
 				jmp ext_colide_yourself
 			.ENDIF
@@ -520,8 +556,17 @@ algorythm proc
 		.IF ebx == fruitY
 			inc nTail
 			add score, 100
+			inc fruitcount
+			mov al, speedchange
+			.IF fruitcount == al
+				mov bl, maxspeed
+				.IF speed != bl
+					sub speed, 2
+				.ENDIF
+				mov fruitcount, 0
+			.ENDIF
 			.IF nTail == 396
-				mov gamestate, 3
+				mov gamestate, 4
 			.ELSE
 				invoke NewFruit
 			.ENDIF
@@ -530,17 +575,17 @@ algorythm proc
 	mov eax, personajeX
 	mov ebx, personajeY
 	.IF eax == 0
-		mov gamestate, 2
+		mov gamestate, 3
 		invoke GameoverProc
 	.ELSEIF eax == 336
-		mov gamestate, 2
+		mov gamestate, 3
 		invoke GameoverProc
 	.ENDIF
 	.IF ebx == 0
-		mov gamestate, 2
+		mov gamestate, 3
 		invoke GameoverProc
 	.ELSEIF ebx == 336
-		mov gamestate, 2
+		mov gamestate, 3
 		invoke GameoverProc
 	.ENDIF
 	invoke SeparateScore, score
