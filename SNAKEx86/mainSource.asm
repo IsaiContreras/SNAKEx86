@@ -65,7 +65,6 @@ imageFilename			byte		'snake_spritesheet.bmp',0				; El manejador de la imagen a
 ;==============================================
 ;=============== MIS VARIABLES ================
 ;==============================================
-loop_aux dword 0
 timer_counter byte 0
 controller byte 0
 mode dword 0
@@ -204,13 +203,13 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 		mov ebx, offset tailX
 		mov esi, offset tailY
 		tail_draw:
-			mov loop_aux, ecx
+			push ecx
 			mov eax, dword ptr [ebx]
 			mov edx, dword ptr [esi]
 			invoke	TransparentBlt, auxiliarLayerContext, eax, edx, 16, 16, layerContext, 64, 0, 16, 16, 00000FF00h
 			add ebx, 4
 			add esi, 4
-			mov ecx, loop_aux
+			pop ecx
 		loop tail_draw
 
 		.IF gamestate != 3																								; Fruta
@@ -224,9 +223,9 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 		.IF gamestate == 1
 			invoke TransparentBlt, auxiliarLayerContext, 122, 154, 107, 43, layerContext, 352, 148, 107, 43, 00000FF00h
 		.ELSEIF gamestate == 2
-			invoke TransparentBlt, auxiliarLayerContext, 85, 90, 182, 110, layerContext, 352, 0, 182, 110, 00000FF00h
+			invoke TransparentBlt, auxiliarLayerContext, 85, 35, 182, 110, layerContext, 352, 0, 182, 110, 00000FF00h
 			mov esi, offset savescore
-			mov ebx, 200
+			mov ebx, 160
 			mov ecx, 6
 			print_scores:
 				push ecx
@@ -235,9 +234,9 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 				invoke SeparateScore, eax
 				pop ebx
 				push esi
-				invoke PrintScore, 120, ebx
+				invoke PrintScore, 135, ebx
 				pop esi
-				add ebx, 20
+				add ebx, 28
 				add esi, 4
 				pop ecx
 			loop print_scores
@@ -508,11 +507,26 @@ algorythm proc
 			.IF ebx == personajeY
 				mov gamestate, 2
 				invoke GameoverProc
+				jmp ext_colide_yourself
 			.ENDIF
 		.ENDIF
 		add esi, 4
 		add edi, 4
 	loop colide_yourself
+	ext_colide_yourself:
+	mov eax, personajeX
+	mov ebx, personajeY
+	.IF eax == fruitX
+		.IF ebx == fruitY
+			inc nTail
+			add score, 100
+			.IF nTail == 396
+				mov gamestate, 3
+			.ELSE
+				invoke NewFruit
+			.ENDIF
+		.ENDIF
+	.ENDIF
 	mov eax, personajeX
 	mov ebx, personajeY
 	.IF eax == 0
@@ -528,17 +542,6 @@ algorythm proc
 	.ELSEIF ebx == 336
 		mov gamestate, 2
 		invoke GameoverProc
-	.ENDIF
-	.IF eax == fruitX
-		.IF ebx == fruitY
-			inc nTail
-			add score, 100
-			.IF nTail == 396
-				mov gamestate, 3
-			.ELSE
-				invoke NewFruit
-			.ENDIF
-		.ENDIF
 	.ENDIF
 	invoke SeparateScore, score
 	mov controller, 1
@@ -558,18 +561,18 @@ NewFruit proc
 		mov esi, offset tailX
 		mov edi, offset tailY
 		checkcolide:
-		mov loop_aux, ecx
+		push ecx
 		mov eax, dword ptr [esi]
 		mov ebx, dword ptr [edi]
 			.IF fruitX == eax
 				.IF fruitY == ebx
-					mov ecx, loop_aux
+					pop ecx
 					loop ubicate
 				.ENDIF
 			.ENDIF
 			add esi, 4
 			add edi, 4
-		mov ecx, loop_aux
+		pop ecx
 		loop checkcolide
 	ret
 NewFruit endp
@@ -678,12 +681,12 @@ PrintScore proc posx:dword, posy:dword
 	mov ecx, 5
 	mov esi, offset scorearray
 	scoreP:
-		mov loop_aux, ecx
+		push ecx
 		mov eax, dword ptr [esi]
 		invoke PrintNumber, posx, posy
-		add posx, 16
+		add posx, 18
 		add esi, 4
-		mov ecx, loop_aux
+		pop ecx
 	loop scoreP
 	ret
 PrintScore endp
