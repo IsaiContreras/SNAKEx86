@@ -222,6 +222,7 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 				invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 80, 0, 16, 16, 00000FF00h
 			.ENDIF
 
+			invoke SeparateScore, score
 			invoke PrintScore, 100, 354
 
 			.IF gamestate == 2
@@ -435,13 +436,13 @@ WindowCallback endp
 
 setup proc
 	mov ecx, 400
-	mov ebx, offset tailX
-	mov esi, offset tailY
+	mov esi, offset tailX
+	mov edi, offset tailY
 	zeroTail:
-		mov dword ptr [ebx], 0
 		mov dword ptr [esi], 0
-		add ebx, 4
+		mov dword ptr [edi], 0
 		add esi, 4
+		add edi, 4
 	loop zeroTail
 	mov ecx, 5
 	mov esi, offset scorearray
@@ -457,19 +458,6 @@ setup proc
 	mov personajeY, 176
 	mov nTail, 3
 	mov score, 0
-	.IF mode == 0
-		mov speed, 22
-		mov speedchange, 12
-		mov maxspeed, 12
-	.ELSEIF mode == 1
-		mov speed, 18
-		mov speedchange, 10
-		mov maxspeed, 8
-	.ELSEIF mode == 2
-		mov speed, 16
-		mov speedchange, 8
-		mov maxspeed, 6
-	.ENDIF
 	mov fruitcount, 0
 	mov ecx, nTail
 	mov esi, offset tailX
@@ -484,6 +472,19 @@ setup proc
 		add esi, 4
 		add edi, 4
 	loop initializeTail
+	.IF mode == 0
+		mov speed, 20
+		mov speedchange, 12
+		mov maxspeed, 12
+	.ELSEIF mode == 1
+		mov speed, 18
+		mov speedchange, 10
+		mov maxspeed, 8
+	.ELSEIF mode == 2
+		mov speed, 14
+		mov speedchange, 8
+		mov maxspeed, 6
+	.ENDIF
 	invoke NewFruit
 	ret
 setup endp
@@ -588,37 +589,38 @@ algorythm proc
 		mov gamestate, 3
 		invoke GameoverProc
 	.ENDIF
-	invoke SeparateScore, score
 	mov controller, 1
 	ret
 algorythm endp
 
 NewFruit proc
-	ubicate:
-		invoke LocateFruit
-		mov eax, 0
-		mov ebx, 0
-		mov ecx, 0
-		mov edx, 0
-		mov esi, 0
-		mov edi, 0
-		mov ecx, nTail
-		mov esi, offset tailX
-		mov edi, offset tailY
-		checkcolide:
+	invoke LocateFruit
+	mov eax, 0
+	mov ebx, 0
+	mov ecx, 0
+	mov edx, 0
+	mov esi, 0
+	mov edi, 0
+	mov ecx, nTail
+	mov esi, offset tailX
+	mov edi, offset tailY
+	checkcolide:
 		push ecx
 		mov eax, dword ptr [esi]
 		mov ebx, dword ptr [edi]
-			.IF fruitX == eax
-				.IF fruitY == ebx
-					pop ecx
-					loop ubicate
-				.ENDIF
+		.IF fruitX == eax
+			.IF fruitY == ebx
+				pop ecx
+				mov ecx, 0
+				invoke NewFruit
+				jmp checkcolide_end
 			.ENDIF
-			add esi, 4
-			add edi, 4
+		.ENDIF
+		add esi, 4
+		add edi, 4
 		pop ecx
-		loop checkcolide
+	loop checkcolide
+	checkcolide_end:
 	ret
 NewFruit endp
 
