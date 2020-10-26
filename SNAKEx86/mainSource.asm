@@ -207,13 +207,13 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 			mov eax, personajeX																								; Cabeza de Snake
 			mov ebx, personajeY
 			.IF facing == 0
-				invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 0, 0, 16, 16, 0000FF00h
+				invoke	TransparentBlt, auxiliarLayerContext, personajeX, personajeY, 16, 16, layerContext, 0, 0, 16, 16, 0000FF00h
 			.ELSEIF facing == 1
-				invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 16, 0, 16, 16, 0000FF00h
+				invoke	TransparentBlt, auxiliarLayerContext, personajeX, personajeY, 16, 16, layerContext, 16, 0, 16, 16, 0000FF00h
 			.ELSEIF facing == 2
-				invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 32, 0, 16, 16, 0000FF00h
+				invoke	TransparentBlt, auxiliarLayerContext, personajeX, personajeY, 16, 16, layerContext, 32, 0, 16, 16, 0000FF00h
 			.ELSEIF facing == 3
-				invoke	TransparentBlt, auxiliarLayerContext, eax, ebx, 16, 16, layerContext, 48, 0, 16, 16, 0000FF00h
+				invoke	TransparentBlt, auxiliarLayerContext, personajeX, personajeY, 16, 16, layerContext, 48, 0, 16, 16, 0000FF00h
 			.ENDIF
 
 			.IF gamestate != 4																								; Fruta
@@ -601,6 +601,14 @@ NewFruit proc
 	mov edx, 0
 	mov esi, 0
 	mov edi, 0
+	mov eax, personajeX
+	mov ebx, personajeY
+	.IF fruitX == eax
+		.IF fruitY == ebx
+			invoke NewFruit
+			jmp checkcolide_end
+		.ENDIF
+	.ENDIF
 	mov ecx, nTail
 	mov esi, offset tailX
 	mov edi, offset tailY
