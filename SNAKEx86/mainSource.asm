@@ -331,20 +331,38 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 		mov bx, dx
 		and	dx, 0
 		ror edx, 16
-		; En este punto, BX contiene la coordenada de la palanca en x
-		; Y DX la coordenada y
-		; Las coordenadas se dan relativas al la esquina superior izquierda de la palanca.
-		; En escala del 0 a 0FFFFh
-		; Lo que significa que si la palanca está en medio, la coordenada en X será 07FFFh
-		; Y la coordenada Y también.
-		; Lo máximo hacia arriba es 0 en Y
-		; Lo máximo hacia abajo en FFFF en Y
-		; Lo máximo hacia la derecha es FFFF en X
-		; Lo máximo hacia la izquierda es 0 en X
-		; Si la palanca no está en ningún extremo, será un valor intermedio
-		; Este es un ejemplo: Si la palanca está al máximo a la derecha, mostrará los créditos
-		.IF bx == 0FFFFh
-			invoke credits, handler
+		.IF controller == 1
+			.IF gamestate == 1
+				.IF bx < 062B3h
+					.IF dir == 3
+						jmp jump65_j
+					.ENDIF
+					mov dir, 1
+					jump65_j:
+				.ELSEIF dx < 062B3h
+					.IF dir == 4
+						jmp jump87_j
+					.ENDIF
+					mov dir, 2
+					jump87_j:
+				.ELSEIF bx > 09D4Bh
+					.IF dir == 1
+						jmp jump68_j
+					.ENDIF
+					.IF dir == 0
+						jmp jump68_j
+					.ENDIF
+					mov dir, 3
+					jump68_j:
+				.ELSEIF dx > 09D4Bh
+					.IF dir == 2
+						jmp jump83_j
+					.ENDIF
+					mov dir, 4
+					jump83_j:
+				.ENDIF
+			.ENDIF
+			mov controller, 0
 		.ENDIF
 
 ;	//// MM_JOY1BUTTONDOWN \\\\
@@ -352,52 +370,45 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 		; Lo que hace cuando presionas un botón del joystick
 		; Pueden comparar que botón se presionó haciendo un AND
 		xor	ebx, ebx
-		mov	ebx, wParam
-		.IF controller == 1
-			.IF gamestate == 1
-				and	ebx, JOY_BUTTON3
-				.IF ebx != 0 
-					.IF dir == 3
-						jmp jump65_c
-					.ENDIF
-					mov dir, 1
-					jump65_c:
-				.ENDIF
-				xor	ebx, ebx
-				mov	ebx, wParam 
-				and ebx, JOY_BUTTON4
-				.IF ebx != 0
-					.IF dir == 4
-						jmp jump87_c
-					.ENDIF
-					mov dir, 2
-					jump87_c:
-				.ENDIF
-				xor	ebx, ebx
-				mov	ebx, wParam 
-				and ebx, JOY_BUTTON2
-				.IF ebx != 0
-					.IF dir == 1
-						jmp jump68_c
-					.ENDIF
-					.IF dir == 0
-						jmp jump68_c
-					.ENDIF
-					mov dir, 3
-					jump68_c:
-				.ENDIF
-				xor	ebx, ebx
-				mov	ebx, wParam 
-				and ebx, JOY_BUTTON1
-				.IF ebx != 0
-					.IF dir == 2
-						jmp jump83_c
-					.ENDIF
-					mov dir, 4
-					jump83_c:
+		mov	ebx, wParam 
+		and ebx, JOY_BUTTON4
+		.IF ebx != 0
+			mov gamestate, 0
+		.ENDIF
+		xor	ebx, ebx
+		mov	ebx, wParam 
+		and ebx, JOY_BUTTON2
+		.IF ebx != 0
+			.IF gamestate != 3
+				.IF gamestate == 1
+					mov gamestate, 2
+				.ELSEIF gamestate == 2
+					mov gamestate, 1
 				.ENDIF
 			.ENDIF
-			mov controller, 0
+		.ENDIF
+		.IF gamestate == 0
+			xor	ebx, ebx
+			mov	ebx, wParam 
+			and ebx, JOY_BUTTON3
+			.IF ebx != 0
+				mov mode, 0
+				invoke setup
+			.ENDIF
+			xor	ebx, ebx
+			mov	ebx, wParam 
+			and ebx, JOY_BUTTON1
+			.IF ebx != 0
+				mov mode, 1
+				invoke setup
+			.ENDIF
+			xor	ebx, ebx
+			mov	ebx, wParam 
+			and ebx, JOY_BUTTON2
+			.IF ebx != 0
+				mov mode, 2
+				invoke setup
+			.ENDIF
 		.ENDIF
 
 ;	//// WM_TIMER \\\\
