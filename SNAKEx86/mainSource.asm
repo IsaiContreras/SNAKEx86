@@ -160,17 +160,8 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 		invoke	LoadImage, NULL, addr imageFilename, IMAGE_BITMAP, 0, 0, LR_LOADFROMFILE		;Cargamos la imagen
 		mov		image, eax
 		invoke	joyGetNumDevs																	; Habilitamos el joystick
-		.IF
-			invoke	joyGetPos, JOYSTICKID1, addr joystickInfo
-			.IF eax != JOYERR_NOERROR
-				invoke joystickError
-			.ELSE
-				invoke	joySetCapture, handler, JOYSTICKID1, NULL, FALSE
-				.IF eax != 0
-					invoke joystickError
-				.ENDIF
-			.ENDIF
-		.ENDIF
+		invoke	joyGetPos, JOYSTICKID1, addr joystickInfo
+		invoke	joySetCapture, handler, JOYSTICKID1, NULL, FALSE
 		invoke	SetTimer, handler, 33, 10, NULL
 
 ;	//// WM_PAINT \\\\
