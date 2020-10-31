@@ -216,12 +216,16 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 			invoke SeparateScore, score
 			invoke PrintScore, 100, 354
 
+			.IF dir == 0
+				invoke TransparentBlt, auxiliarLayerContext, 72, 110, 215, 56, layerContext, 568, 263, 215, 56, 00000FF00h
+			.ENDIF
 			.IF gamestate == 2
 				invoke TransparentBlt, auxiliarLayerContext, 122, 154, 107, 43, layerContext, 352, 148, 107, 43, 00000FF00h
 			.ELSEIF gamestate == 3
 				invoke TransparentBlt, auxiliarLayerContext, 85, 35, 182, 110, layerContext, 352, 0, 182, 110, 00000FF00h
+				invoke TransparentBlt, auxiliarLayerContext, 72, 140, 215, 32, layerContext, 568, 231, 215, 32, 00000FF00h
 				mov esi, offset savescore
-				mov ebx, 160
+				mov ebx, 170
 				mov ecx, 6
 				print_scores:
 					push ecx
@@ -238,6 +242,7 @@ WindowCallback proc handler:dword, message:dword, wParam:dword, lParam:dword
 				loop print_scores
 			.ELSEIF gamestate == 4
 				invoke TransparentBlt, auxiliarLayerContext, 85, 121, 206, 110, layerContext, 352, 191, 206, 110, 00000FF00h
+				invoke TransparentBlt, auxiliarLayerContext, 72, 150, 215, 32, layerContext, 568, 231, 215, 32, 00000FF00h
 			.ENDIF
 		.ELSEIF
 			invoke TransparentBlt, auxiliarLayerContext, 43, 30, 266, 230, layerContext, 568, 0, 266, 230, 00000FF00h
